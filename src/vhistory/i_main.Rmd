@@ -1,0 +1,463 @@
+---
+title: "Neural Price equation for inferring eco-evolutionary dynamics"
+output: bookdown::html_document2
+date: "2023-12-15"
+author: "Willem Bonnaffé"
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("f_betteRplots.r")
+source("f_bngm.r")
+source("f_model_o.r")
+source("f_model_p.r")
+```
+
+# Methods
+
+## Neural Price framework
+
+We will define the Price equation framework in subsequent versions of this document.
+
+## Case study: rotifers and algae
+
+### System
+
+We consider first a simple ecosystem with an algal prey a rotifer pretador.
+Let $A,R \in \mathcal{R}^{+}$ denote the population density of the algae and rotifer respectively.
+We also consider the phenotype $Z \in \mathcal{R}^{+}$ of the algae, which is defined as the average size of anti-predator clumps.
+For the sake of mathematical convenience, we log-transform and standardise the variables (i.e. $\bar{X} := (\log(X) - \mu_X)/\sigma_X$, where $\mu_X$ and $\sigma_x$ are the mean and standard deviation on the log-scale).
+
+```{r script_load_time_series, echo=FALSE}
+##############
+## INITIATE ##
+##############
+
+## Goal: load data, functions
+
+## Load data
+TS = read.table("data/TS_2.csv",sep=";",header=T)
+
+## Extract time steps and columns of interest
+selected_time_steps = 1:nrow(TS)
+selected_columns = c("t","R","G","B")
+TS = TS[selected_time_steps,]
+TS = TS[,selected_columns]
+
+## Shorten column names
+column_names = c("times","A","Z","R")
+colnames(TS) = column_names
+
+## Transform variables
+TS[,2] = log(TS[,2])
+TS[,3] = log(TS[,3])
+TS[,4] = log(TS[,4])
+
+## Normalise time series
+TS[,-1] = apply(TS[,-1], 2, function(x) (x-mean(x))/sd(x))
+
+## Data specs
+N = ncol(TS) - 1
+n = nrow(TS)
+```
+
+```{r fig_plot_time_series, echo=FALSE}
+######################
+## PLOT TIME SERIES ##
+######################
+
+## Plot settings
+par(mfrow=c(1,1), xaxs="i", yaxs="i")
+color_vector = c("","green", "blue", "red")
+labels_vector = c("", "Algae Density", "Mean Phenotype", "Rotifer Density")
+xlim = c(0,100)
+ylim = c(-4.0,3.0)
+## Plotting area
+plot(TS[,1], TS[,2], cex=0, xlab="Time Step", ylab="State (SU)", bty="n", xaxt="n", yaxt="n", bty="l", xlim=xlim, ylim=ylim)
+## Grid
+x = seq(xlim[1],xlim[2],10)
+y = seq(ylim[1],ylim[2],0.5)
+add_axes_and_grid(x, y, alpha=c(10, 0.2), label="")
+## Data
+for(i in 2:ncol(TS)) lines(TS[,1], TS[,i], type="p", col=adjustcolor(color_vector[i], alpha=0.5), pch=16)
+## Legend
+legend("bottomright", legend=labels_vector[-1], col=color_vector[-1], lty=1, bty="n")
+## End
+par(mfrow=c(1,1))
+
+#
+###
+```
+
+### Model
+
+We define a simple model, using the Price equation to model the dynamics of the phenotype, to represent the eco-evolutionary dynamics of the system:
+
+\begin{equation}
+\left \{ \begin{aligned}
+\dot{A} &:= f_A(A, Z, R; \Theta_A) \\
+\dot{Z} &:= V \frac{\partial f_A}{\partial Z} (A, Z, R; \Theta_A) \\
+\dot{R} &:= f_R(A, Z, R; \Theta_R), \\
+\end{aligned} \right. (\#eq:model)
+\end{equation}
+
+where the notation $\dot{X}$ indicates the temporal derivative of stage variable X.
+The ecological dynamics of the algae and rotifer are defined as neural networks $f_A$ and $f_R$, while the dynamics of the phenotype is proportional to the selection gradient $\partial f_A / \partial Z$.
+The additive genetic variance $V$ is considered to be constant throughout the time series in this first model. 
+The parameter vectors $\Theta_A$ and $\Theta_B$ correspond to the weights and biases of the neural networks.
+
+### Inference
+
+We estimate the parameter vectors by Bayesian neural gradient matching (BNGM).
+To do this, we proceed in two steps.
+First, we interpolate the time series and compute the expectation of the states and dynamics.
+Second, we fit the system to the interpolated states and dynamics.
+We introduce regularisation of the objective with Laplace priors on the parameters.
+
+```{r script_demc_observation_model, echo=FALSE}
+# ############################
+# ## DEMC OBSERVATION MODEL ##
+# ############################
+# 
+# ## Imports
+# library(Rcpp)
+# 
+# ## Import modules
+# sourceCpp("f_demc.cpp")
+# 
+# ## Parameters of observation model
+# N = ncol(TS) - 1
+# n = nrow(TS)
+# K_o = 10
+# W_o = 10
+# N_o = W_o*3
+# sd1_o = 1.0
+# sd2_o = 0.25
+# rho = 1
+# alpha_i = 1
+# 
+# ## Explanatory and response variable
+# t = TS[,1]
+# Y = TS[,-1]
+# nt = seq(min(t), max(t), (t[2]-t[1])/alpha_i)
+# 
+# ## Standardise time steps
+# t_ = 1:length(t)
+# nt_ = seq(min(t_), max(t_), (t_[2]-t_[1])/alpha_i)
+# 
+# ## Standardise data
+# Y_ = Y
+# mean_y = apply(Y_, 2, mean)
+# sd_y = apply(Y_, 2, sd)
+# Y_ = t((t(Y_) - mean_y)/sd_y)
+# 
+# ## Interpolate time series
+# Yhat_o = ddt.Yhat_o = NULL
+# Yhat_o_lo = ddt.Yhat_o_lo = NULL
+# Yhat_o_hi = ddt.Yhat_o_hi = NULL
+# i = 1
+# for(i in 1:N)
+# {
+#     ## Anchor ensembling
+#     chain = NULL
+#     for(k in 1:K_o)
+#     {
+#       ## Fit
+#       Omega_0 = rnorm(N_o, 0, 0.001)
+#       Omega_f = argmax.logPost(t_, Y_[,i], f_o.eval, ddOmega.f_o.eval, Omega_0, sd1_o, sd2_o)
+#       # Omega_f = argmax.logMarPost(t_, Y_[,i], f_o.eval, ddOmega.f_o.eval, Omega_0, 1.0)
+#       chain = rbind(chain, Omega_f)
+#     }
+# 
+#     # ## Initiate chain
+#     # # target = function(x) return(logMarPost(t_, Y_[,i], f_o.eval, x, 1))
+#     # target = function(x) return(logPost(t_, Y_[,i], f_o.eval, x, sd1_o, sd2_o))
+#     # nIt = 1000
+#     # Omega_0 = rnorm(N_o, 0, 0.001)
+#     # Omega_0 = argmax.logPost(t_, Y_[,i], f_o.eval, ddOmega.f_o.eval, Omega_0, sd1_o, sd2_o)
+#     # 
+#     # ## Run chain
+#     # chain = DEMCpp(list("dTarget"=target,
+#     #                     "Theta_0"=Omega_0,
+#     #                     "epsilon"=0.001,
+#     #                     "nIt"=nIt))$chainList
+#     # chain = chain[round(0.5*nIt):nIt, -1] # Burn
+#     # chain = chain[seq(1, nrow(chain), nrow(chain)/100), ] # Thin
+# 
+#     ## Expectation
+#     Yhat_o_ = t(apply(chain, 1, FUN = function(x) f_o.eval(nt_, x)))
+#     Yhat_o_mean_ = apply(Yhat_o_, 2, mean)
+#     Yhat_o_lo_ = apply(Yhat_o_, 2, quantile, probs=0.1)
+#     Yhat_o_hi_ = apply(Yhat_o_, 2, quantile, probs=0.9)
+#     ddt.Yhat_o_ = t(apply(chain, 1, FUN = function(x) ddt.f_o.eval(nt_, x)))
+#     ddt.Yhat_o_mean_ = apply(ddt.Yhat_o_, 2, mean)
+#     ddt.Yhat_o_lo_ = apply(ddt.Yhat_o_, 2, quantile, probs=0.1)
+#     ddt.Yhat_o_hi_ = apply(ddt.Yhat_o_, 2, quantile, probs=0.9)
+#     # Omega_f = apply(chain, 2, FUN = function(x) f_o.eval(nt_, x))
+#     # Omega_f = chain[which.max(chain[,1]),-1]
+#     # chainList = list(chain)
+#     # Yhat_o_ = f_o.eval(nt_, Omega_f)
+#     # ddt.Yhat_o_ = ddt.f_o.eval(nt_, Omega_f)
+# 
+#     ## Collect
+#     Yhat_o = cbind(Yhat_o, Yhat_o_mean_)
+#     Yhat_o_lo = cbind(Yhat_o_lo, Yhat_o_lo_)
+#     Yhat_o_hi = cbind(Yhat_o_hi, Yhat_o_hi_)
+#     ddt.Yhat_o = cbind(ddt.Yhat_o, ddt.Yhat_o_mean_)
+#     ddt.Yhat_o_lo = cbind(ddt.Yhat_o_lo, ddt.Yhat_o_lo_)
+#     ddt.Yhat_o_hi = cbind(ddt.Yhat_o_hi, ddt.Yhat_o_hi_)
+# }
+# #
+# ###
+```
+
+```{r fig_observation_model, echo=FALSE}
+#########################
+## PLOT INTERPOLATIONS ##
+#########################
+
+## Load results observation model
+load("obj_results_o.RData")
+
+## Plot settings
+par(mfrow=c(2,1), xaxs="i", yaxs="i", oma=c(3,3,0,0), mar=c(2,2,1,1))
+color_vector = c("","green", "blue", "red")
+
+## Subplot 1:
+## Subplot 1 settings
+labels_vector = c("", "Algae", "Phenotype", "Rotifer")
+xlim = c(0, 100)
+ylim = c(-4.0, 3.0)
+## Plotting area
+par(xpd=NA)
+plot(TS[,1], TS[,2], cex=0, xlab="", ylab="State (SU)", bty="n", xaxt="n", yaxt="n", bty="l", xlim=xlim, ylim=ylim)
+par(xpd=F)
+## Grid
+x = seq(xlim[1], xlim[2], 10)
+y = seq(ylim[1], ylim[2], 0.5)
+add_axes_and_grid(x, y, alpha=c(10, 0.4), label="")
+## Data
+for(i in 2:ncol(TS)) polygon(x=c(nt_, rev(nt_)), y=c(Yhat_o_hi[,i-1], rev(Yhat_o_lo[,i-1])), border=NA, col=grey(0.75, alpha=0.5))
+for(i in 2:ncol(TS)) lines(TS[,1], TS[,i], type="p", col=adjustcolor(color_vector[i], alpha=0.5), pch=16)
+for(i in 2:ncol(TS)) lines(nt_, Yhat_o[,i-1], type="l", col=color_vector[i])
+## Legend
+legend("bottom", legend=labels_vector[-1], col=color_vector[-1], lty=1, bty="n", horiz=T)
+legend("topright", legend="a.", bty="n")
+
+## Subplot 2:
+## Sub plot 2 settings
+labels_vector = c("", "Algae", "Phenotype", "Rotifer")
+xlim = c(0, 100)
+ylim = c(-1.0, 1.0)
+## Plotting area
+par(xpd=NA)
+plot(nt_, ddt.Yhat_o[,1], cex=0, xlab="Time Step", ylab="Dynamics", bty="n", xaxt="n", yaxt="n", bty="l", xlim=xlim, ylim=ylim)
+par(xpd=F)
+lines(xlim, c(0,0), lty=2)
+## Grid
+x = seq(xlim[1], xlim[2], 10)
+y = seq(ylim[1], ylim[2], 0.5)
+add_axes_and_grid(x, y, alpha=c(10, 0.2), label="")
+## Data
+for(i in 2:ncol(TS)) polygon(x=c(nt_, rev(nt_)), y=c(ddt.Yhat_o_hi[,i-1], rev(ddt.Yhat_o_lo[,i-1])), border=NA, col=grey(0.75, alpha=0.5))
+for(i in 2:ncol(TS)) lines(nt_, ddt.Yhat_o[,i-1], type="l", col=color_vector[i])
+## Legend
+legend("bottom", legend=labels_vector[-1], col=color_vector[-1], lty=1, bty="n", horiz=T)
+legend("topright", legend="b.", bty="n")
+
+## End
+par(mfrow=c(1,1))
+
+#
+###
+```
+
+
+```{r script_demc_process_model, echo=FALSE}
+# #######################
+# ## FIT PROCESS MODEL ##
+# #######################
+# 
+# ## Parameters of process model
+# K_p = 3
+# W_p = 10
+# N_p = 2 * W_p * (2+N)
+# sd1_p = 1.0
+# sd2_p = c(1, 1, 1)*0.25
+# train_split = 0.75
+# 
+# ## Variables
+# X = Yhat_o
+# ddt.X = ddt.Yhat_o
+# Y = ddt.Yhat_o
+# 
+# ## Standardise predictive variables
+# X_ = X
+# mean_x = apply(X_,2,mean)
+# sd_x = apply(X_,2,sd)
+# X_ = t((t(X_)-mean_x)/sd_x)
+# 
+# ## Standardise response variable
+# Y_ = Y
+# mean_y = apply(Y_,2,mean)
+# sd_y = apply(Y_,2,sd)
+# Y_ = t((t(Y_)-mean_y)/sd_y)
+# 
+# ## Split train and test
+# s_l = 1:round(nrow(X_)*train_split)
+# s_t = -s_l
+# 
+# ## functions
+# Yhat = function(X,Omega) f_p.eval(X, Omega)
+# ddOmega.Yhat = function(X,Omega) ddOmega.f_p.eval(X, Omega)
+# 
+# ## fit
+# Yhat_p = ddx.Yhat_p = Geber_p = NULL
+# Yhat_p_lo = ddx.Yhat_p_lo = Geber_p_lo = NULL
+# Yhat_p_hi = ddx.Yhat_p_hi = Geber_p_hi = NULL
+# for(i in 1:N)
+# {
+#     ## Anchor ensembling
+#     chain = NULL
+#     for(k in 1:K_p)
+#     {
+#       ## Fit
+#       Omega_0 = rnorm(N_p, 0, 0.001)
+#       Omega_f = argmax.logPost(X_[s_l,], Y_[s_l, i], Yhat, ddOmega.Yhat, Omega_0, sd1_p, sd2_p[i])
+#       chain = rbind(chain, Omega_f)
+#     }
+# 
+#     # ## Initiate chain
+#     # target = function(x) return(logPost(X_[s_l,], Y_[s_l, i], f_p.eval, x, sd1_p, sd2_p[i]))
+#     # nIt = 10000
+#     # Omega_0 = rnorm(N_p, 0, 0.001)
+#     # Omega_0 = argmax.logPost(X_[s_l,], Y_[s_l, i], Yhat, ddOmega.Yhat, Omega_0, sd1_p, sd2_p[i])
+#     # 
+#     # ## Run chain
+#     # chain = DEMCpp(list("dTarget"=target,
+#     #                     "Theta_0"=Omega_0,
+#     #                     "epsilon"=0.001,
+#     #                     "nIt"=nIt))$chainList
+#     # chain = chain[round(0.5*nIt):nIt, -1] # Burn
+#     # chain = chain[seq(1, nrow(chain), nrow(chain)/100), ] # Thin
+# 
+#     ## Expectation dynamics
+#     Yhat_p_ = t(apply(chain, 1, FUN = function(x) f_p.eval(X_, x)))
+#     Yhat_p_mean_ = apply(Yhat_p_, 2, mean)
+#     Yhat_p_lo_ = apply(Yhat_p_, 2, quantile, probs=0.1)
+#     Yhat_p_hi_ = apply(Yhat_p_, 2, quantile, probs=0.9)
+# 
+#     ## Expectation effects
+#     ddx.Yhat_p_ = t(apply(chain, 1, FUN = function(x) t(ddx.f_p.eval(X_, x))))
+#     ddx.Yhat_p_mean_ = t(apply(ddx.Yhat_p_, 2, mean))
+#     ddx.Yhat_p_lo_ = t(apply(ddx.Yhat_p_, 2, quantile, probs=0.1))
+#     ddx.Yhat_p_hi_ = t(apply(ddx.Yhat_p_, 2, quantile, probs=0.9))
+#     
+#     ## Expectation Geber
+#     Geber_p_ = t(apply(chain, 1, FUN = function(x) t(t(ddt.X) * ddx.f_p.eval(X_, x))))
+#     Geber_p_mean_ = t(apply(Geber_p_, 2, mean))
+#     Geber_p_lo_ = t(apply(Geber_p_, 2, quantile, probs=0.1))
+#     Geber_p_hi_ = t(apply(Geber_p_, 2, quantile, probs=0.9))
+#     
+#     ## Collect
+#     Yhat_p = cbind(Yhat_p, Yhat_p_mean_)
+#     Yhat_p_lo = cbind(Yhat_p_lo, Yhat_p_lo_)
+#     Yhat_p_hi = cbind(Yhat_p_hi, Yhat_p_hi_)
+#     #
+#     ddx.Yhat_p = cbind(ddx.Yhat_p, t(ddx.Yhat_p_mean_))
+#     ddx.Yhat_p_lo = cbind(ddx.Yhat_p_lo, t(ddx.Yhat_p_lo_))
+#     ddx.Yhat_p_hi = cbind(ddx.Yhat_p_hi, t(ddx.Yhat_p_hi_))
+#     #
+#     Geber_p = cbind(Geber_p, t(Geber_p_mean_))
+#     Geber_p_lo = cbind(Geber_p_lo, t(Geber_p_lo_))
+#     Geber_p_hi = cbind(Geber_p_hi, t(Geber_p_hi_))
+# }
+# #
+# ###
+```
+
+
+```{r fig_process_model, echo=FALSE}
+#########################
+## PLOT INTERPOLATIONS ##
+#########################
+
+## Load results process model 
+load("obj_results_p.RData")
+
+## visualise
+for(i in 1:N)
+{
+    ## Plot settings
+    par(mfrow=c(3,1), xaxs="i", yaxs="i", oma=c(3,3,0,0), mar=c(2,2,1,1))
+    color_vector = c("green", "blue", "red")
+    labels_vector = c("Algae", "Phenotype", "Rotifer")
+    #
+    ## Subplot 1: dynamics
+    ## Subplot settings
+    xlim = c(0, 100)
+    ylim = c(-3.0, 3.0)
+    ## Plotting area
+    par(xpd=NA)
+    plot(nt_, Yhat_p[,i], cex=0, xlab="", ylab="Dynamics (SU)", bty="n", xaxt="n", yaxt="n", bty="l", xlim=xlim, ylim=ylim);
+    par(xpd=F)
+    lines(xlim, c(0,0), lty=2)
+    ## Grid
+    x = seq(xlim[1], xlim[2], 10)
+    y = seq(ylim[1], ylim[2], 1.0)
+    add_axes_and_grid(x, y, alpha=c(10, 0.5), label="")
+    ## Data
+    polygon(x=c(nt_, rev(nt_)), y=c(Yhat_p_lo[,i], rev(Yhat_p_hi[,i])), border=NA, col=grey(0.75, alpha=0.5))
+    lines(nt_, Yhat_p[,i], col=color_vector[i])
+    points(nt_, Y_[,i], type="p", col=adjustcolor(color_vector[i], alpha=0.5), pch=16)
+    ## Legend
+    legend("bottom", legend=labels_vector, col=color_vector, lty=1, bty="n", horiz=T)
+    legend("topright", legend="a.", bty="n")
+    #
+    ## Subplot 2: effects
+    ## Subplot settings
+    xlim = c(0, 100)
+    ylim = c(-4.0, 4.0)
+    ## Plotting area
+    par(xpd=NA)
+    plot(nt_, Yhat_p[,i], cex=0, xlab="", ylab="Effects (SU)", bty="n", xaxt="n", yaxt="n", bty="l", xlim=xlim, ylim=ylim);
+    par(xpd=F)
+    lines(xlim, c(0,0), lty=2)
+    ## Grid
+    x = seq(xlim[1], xlim[2], 10)
+    y = seq(ylim[1], ylim[2], 0.5)
+    add_axes_and_grid(x, y, alpha=c(10, 0.5), label="")
+    ## Data
+    for(j in 1:N) polygon(x=c(nt_, rev(nt_)), y=c(ddx.Yhat_p_lo[((j-1)*n+1):(j*n),i], rev(ddx.Yhat_p_hi[((j-1)*n+1):(j*n),i])), border=NA, col=grey(0.75, alpha=0.5))
+    for(j in 1:N) lines(nt_, ddx.Yhat_p[((j-1)*n+1):(j*n),i], type="l", col=color_vector[j])
+    ## Legend
+    legend("bottom", legend=labels_vector, col=color_vector, lty=1, bty="n", horiz=T)
+    legend("topright", legend="b.", bty="n")
+    #
+    ## Subplot 3: Contributions
+    ## Subplot settings
+    xlim = c(0, 100)
+    ylim = c(-1.0, 1.0)
+    ## Plotting area
+    par(xpd=NA)
+    plot(nt_, Yhat_p[,i], cex=0, xlab="", ylab="Contributions (SU)", bty="n", xaxt="n", yaxt="n", bty="l", xlim=xlim, ylim=ylim);
+    par(xpd=F)
+    lines(xlim, c(0,0), lty=2)
+    ## Grid
+    x = seq(xlim[1], xlim[2], 10)
+    y = seq(ylim[1], ylim[2], 0.25)
+    add_axes_and_grid(x, y, alpha=c(10, 0.2), label="")
+    ## Data
+    for(j in 1:N) polygon(x=c(nt_, rev(nt_)), y=c(Geber_p_lo[((j-1)*n + 1):(j*n),i], rev(Geber_p_hi[((j-1)*n + 1):(j*n),i])), border=NA, col=grey(0.75, alpha=0.5))
+    for(j in 1:N) lines(nt_, Geber_p[((j-1)*n + 1):(j*n),i], type="l", col=color_vector[j])
+    ## Legend
+    legend("bottom", legend=labels_vector, col=color_vector, lty=1, bty="n", horiz=T)
+    legend("topright", legend="c.", bty="n")
+
+    ## End
+    par(mfrow=c(1,1))
+}
+#
+###
+```
