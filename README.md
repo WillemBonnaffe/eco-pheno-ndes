@@ -7,6 +7,8 @@ The aim is to quantify the effects of population density, mean body mass, winter
 The approach identifies the degree of non-linearity in effects and interactions between variables that is supported by the time series data.
 For more details see the associated publication ([ref]).
 
+![Alt text](thumbnail.png)
+
 ## Setting up
 
 You need to install R. 
