@@ -48,6 +48,7 @@ Rscript m3_fit-nde-v-2026-02-21.r   # Analyse single time series file with eco-p
 * `src/f_bngm.r`: R function collection for performing Bayesian neural gradient matching (Bonnaffé & Coulson 2023).
 * `src/f_model_o.r`: R function collection for define and train the observation model (Bonnaffé & Coulson 2023).
 * `src/f_model_p.r`: R function collection for define and train the process model (Bonnaffé & Coulson 2023).
+* `src/f_slp.r`: R function collection to define single layer neural networks.
 * `src/f_utils.r`: R function collection for basic utilities.
 * `src/tab-effects-*`: Results for Table S1, i.e. effects of the variables on the dynamics of the population and phenotype.
 * `src/tab-r2-*`: Summary of r-squared values.
