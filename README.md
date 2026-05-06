@@ -1,4 +1,4 @@
-# Eco-pheno NDEs
+# Eco-phenotypic neural difference equations
 
 ## Overview
 
