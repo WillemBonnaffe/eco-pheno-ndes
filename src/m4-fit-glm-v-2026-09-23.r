@@ -484,4 +484,146 @@ legend(
 #
 ###
 
+########################################
+## CHECK TEMPORAL AUTOCORRELATION ##
+########################################
+
+## Residuals are checked separately for each time series
+time_series <- split(seq_len(nrow(dat)), MTS_o$idx)
+
+check_residual_autocorrelation <- function(model, model_name) {
+  do.call(rbind, lapply(names(time_series), function(id) {
+    residuals <- resid(model)[time_series[[id]]]
+    acf_result <- acf(residuals, plot = FALSE)
+    test_result <- Box.test(residuals, lag = 3, type = "Ljung-Box")
+
+    data.frame(
+      Model = model_name,
+      Time_series = id,
+      Lag_1_ACF = acf_result$acf[2],
+      Ljung_Box_p_value = test_result$p.value
+    )
+  }))
+}
+
+residual_autocorrelation <- rbind(
+  check_residual_autocorrelation(LM1.full.4, "LM1_population"),
+  check_residual_autocorrelation(LM2.full.5, "LM2_phenotype")
+)
+
+write.csv(
+  residual_autocorrelation,
+  "table_residual_temporal_autocorrelation.csv",
+  row.names = FALSE
+)
+
+## ACF plots for each time series
+pdf("figures_residual_temporal_autocorrelation.pdf", width = 10, height = 8)
+par(mfrow = c(3, 4))
+
+for (id in names(time_series)) {
+  acf(resid(LM1.full.4)[time_series[[id]]],
+      main = paste("LM1 residuals:", id))
+}
+
+for (id in names(time_series)) {
+  acf(resid(LM2.full.5)[time_series[[id]]],
+      main = paste("LM2 residuals:", id))
+}
+
+dev.off()
+
+#
+###
+
+###########################
+## EXPORT MODEL TABLES ##
+###########################
+
+## Parameter estimates for the final model in each model sequence
+make_parameter_table <- function(model) {
+  x <- as.data.frame(coef(summary(model)))
+  x$Parameter <- rownames(x)
+  rownames(x) <- NULL
+  x <- x[, c("Parameter", "Estimate", "Std. Error", "Pr(>|t|)")]
+  colnames(x) <- c("Parameter", "Estimate", "Std_Error", "Significance")
+  x
+}
+
+## Changes between successive models in a simplification sequence
+make_simplification_table <- function(models, deleted_terms) {
+  out <- vector("list", length(deleted_terms))
+
+  for (i in seq_along(deleted_terms)) {
+    full_model <- models[[i]]
+    reduced_model <- models[[i + 1]]
+    a <- anova(reduced_model, full_model)
+
+    out[[i]] <- data.frame(
+      Initial_full_model = names(models)[i],
+      Deleted_term = deleted_terms[i],
+      Delta_AIC = as.numeric(AIC(reduced_model)) - as.numeric(AIC(full_model)),
+      Delta_Sum_of_Sq = a$`Sum of Sq`[2],
+      F_statistic = a$F[2],
+      Significance = a$`Pr(>F)`[2]
+    )
+  }
+
+  do.call(rbind, out)
+}
+
+## Model 1: population growth
+LM1_parameters <- make_parameter_table(LM1.full.4)
+LM1_simplification <- make_simplification_table(
+  list(
+    LM1.full.0 = LM1.full.0,
+    LM1.full.1 = LM1.full.1,
+    LM1.full.2 = LM1.full.2,
+    LM1.full.3 = LM1.full.3,
+    LM1.full.4 = LM1.full.4
+  ),
+  c(
+    "temp_mean_summer:fishing_status",
+    "Z_mean:fishing_status",
+    "temp_mean_winter:fishing_status",
+    "N:fishing_status"
+  )
+)
+
+## Model 2: phenotypic change
+LM2_parameters <- make_parameter_table(LM2.full.5)
+LM2_simplification <- make_simplification_table(
+  list(
+    LM2.full.0 = LM2.full.0,
+    LM2.full.1 = LM2.full.1,
+    LM2.full.2 = LM2.full.2,
+    LM2.full.3 = LM2.full.3,
+    LM2.full.4 = LM2.full.4,
+    LM2.full.5 = LM2.full.5
+  ),
+  c(
+    "N:fishing_status",
+    "temp_mean_summer:fishing_status",
+    "temp_mean_winter:fishing_status",
+    "N",
+    "temp_mean_summer"
+  )
+)
+
+write.csv(LM1_parameters,
+          "table_LM1_population_parameter_estimates.csv",
+          row.names = FALSE)
+write.csv(LM1_simplification,
+          "table_LM1_population_model_simplification.csv",
+          row.names = FALSE)
+write.csv(LM2_parameters,
+          "table_LM2_phenotype_parameter_estimates.csv",
+          row.names = FALSE)
+write.csv(LM2_simplification,
+          "table_LM2_phenotype_model_simplification.csv",
+          row.names = FALSE)
+
+#
+###
+
 dev.off()
