@@ -321,6 +321,75 @@ anova(LM1.full.1,LM1.full.0)
 anova(LM1.full.2,LM1.full.1)
 anova(LM1.full.4,LM1.full.3)
 
+## Simplification from full
+LM1.full.0 <- lm(ddt.pop ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_summer * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.0)
+drop1(LM1.full.0)
+LM1.full.1 <- lm(ddt.pop ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.1)
+drop1(LM1.full.1)
+LM1.full.2 <- lm(ddt.pop ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.2)
+drop1(LM1.full.2)
+LM1.full.3 <- lm(ddt.pop ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + N * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.3)
+drop1(LM1.full.3)
+LM1.full.4 <- lm(ddt.pop ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + N * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.4)
+drop1(LM1.full.4)
+LM1.full.5 <- lm(ddt.pop ~ N * temp_mean_winter + Z_mean * temp_mean_winter + temp_mean_summer + N * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.5)
+drop1(LM1.full.5)
+LM1.full.6 <- lm(ddt.pop ~ Z_mean * temp_mean_winter + temp_mean_summer + N * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.6)
+drop1(LM1.full.6)
+LM1.full.7 <- lm(ddt.pop ~ Z_mean * temp_mean_winter + temp_mean_summer + N * fishing_status + temp_mean_winter * fishing_status + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.7)
+drop1(LM1.full.7)
+LM1.full.8 <- lm(ddt.pop ~ Z_mean * temp_mean_winter + temp_mean_summer + N * fishing_status + temp_mean_winter * fishing_status + I(temp_mean_summer^2), data = dat)
+summary(LM1.full.8)
+drop1(LM1.full.8)
+LM1.full.9 <- lm(ddt.pop ~ Z_mean * temp_mean_winter + temp_mean_summer + N * fishing_status + I(temp_mean_summer^2), data = dat)
+summary(LM1.full.9)
+drop1(LM1.full.9)
+LM1.full.10 <- lm(ddt.pop ~ Z_mean + temp_mean_winter + temp_mean_summer + N * fishing_status + I(temp_mean_summer^2), data = dat)
+summary(LM1.full.10)
+drop1(LM1.full.10)
+LM1.full.11 <- lm(ddt.pop ~ Z_mean + temp_mean_winter + temp_mean_summer + N * fishing_status, data = dat)
+summary(LM1.full.11)
+drop1(LM1.full.11)
+LM1.full.12 <- lm(ddt.pop ~ temp_mean_winter + temp_mean_summer + N * fishing_status, data = dat)
+summary(LM1.full.12)
+drop1(LM1.full.12)
+
+## Check AIC
+AIC(LM1.full.0, k=2)
+AIC(LM1.full.1, k=2)
+AIC(LM1.full.2, k=2)
+AIC(LM1.full.3, k=2)
+AIC(LM1.full.4, k=2)
+AIC(LM1.full.5, k=2)
+AIC(LM1.full.6, k=2)
+AIC(LM1.full.7, k=2)
+AIC(LM1.full.8, k=2)
+AIC(LM1.full.9, k=2)
+AIC(LM1.full.10, k=2)
+AIC(LM1.full.11, k=2)
+AIC(LM1.full.12, k=2)
+
+## Check changes in residuals
+anova(LM1.full.1,LM1.full.0)
+anova(LM1.full.2,LM1.full.1)
+anova(LM1.full.4,LM1.full.3)
+anova(LM1.full.5,LM1.full.4)
+anova(LM1.full.6,LM1.full.5)
+anova(LM1.full.7,LM1.full.6)
+anova(LM1.full.8,LM1.full.7)
+anova(LM1.full.9,LM1.full.8)
+anova(LM1.full.10,LM1.full.9)
+anova(LM1.full.11,LM1.full.10)
+anova(LM1.full.12,LM1.full.11)
+
 #
 ###
 
@@ -328,7 +397,7 @@ anova(LM1.full.4,LM1.full.3)
 ## VISUALISE PREDICTIONS ##
 ###########################
 
-plot_effect <- function(var, label, model, response) {
+plot_effect <- function(var, label, model, response, ylab) {
   
   x <- dat[[var]]
   
@@ -336,7 +405,7 @@ plot_effect <- function(var, label, model, response) {
     x[dat$fishing_status == 0],
     response[dat$fishing_status == 0],
     pch = 1, col = "black",
-    xlab = label, ylab = "Population growth",
+    xlab = label, ylab = ylab,
     xlim = range(x, na.rm = TRUE),
     ylim = range(dat$ddt.pop, na.rm = TRUE),
   )
@@ -372,13 +441,13 @@ plot_effect <- function(var, label, model, response) {
 }
 
 par(mfrow = c(2, 2))
-plot_effect("N", "Density", LM1.full.4, dat$ddt.pop)
+plot_effect("N", "Density", LM1.full.12, dat$ddt.pop, "Population growth")
 lines(c(-10,10),c(0,0),lty=2)
-plot_effect("Z_mean", "Mean phenotype", LM1.full.4, dat$ddt.pop)
+plot_effect("Z_mean", "Mean phenotype", LM1.full.12, dat$ddt.pop, "Population growth")
 lines(c(-10,10),c(0,0),lty=2)
-plot_effect("temp_mean_summer", "Summer temperature", LM1.full.4, dat$ddt.pop)
+plot_effect("temp_mean_summer", "Summer temperature", LM1.full.12, dat$ddt.pop, "Population growth")
 lines(c(-10,10),c(0,0),lty=2)
-plot_effect("temp_mean_winter", "Winter temperature", LM1.full.4, dat$ddt.pop)
+plot_effect("temp_mean_winter", "Winter temperature", LM1.full.12, dat$ddt.pop, "Population growth")
 lines(c(-10,10),c(0,0),lty=2)
 
 legend(
@@ -456,6 +525,53 @@ anova(LM2.full.2,LM2.full.1)
 anova(LM2.full.4,LM2.full.3)
 anova(LM2.full.5,LM2.full.4)
 
+## Simplification from full
+LM2.full.0 <- lm(ddt.phe ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_summer * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM2.full.0)
+drop1(LM2.full.0)
+LM2.full.1 <- lm(ddt.phe ~ N * temp_mean_winter + N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_summer * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM2.full.1)
+drop1(LM2.full.1)
+LM2.full.2 <- lm(ddt.phe ~ N * temp_mean_winter + N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM2.full.2)
+drop1(LM2.full.2)
+LM2.full.3 <- lm(ddt.phe ~ N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM2.full.3)
+drop1(LM2.full.3)
+LM2.full.4 <- lm(ddt.phe ~ N * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM2.full.4)
+drop1(LM2.full.4)
+LM2.full.5 <- lm(ddt.phe ~ N * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM2.full.5)
+drop1(LM2.full.5)
+LM2.full.6 <- lm(ddt.phe ~ N * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(temp_mean_summer^2), data = dat)
+summary(LM2.full.6)
+drop1(LM2.full.6)
+LM2.full.7 <- lm(ddt.phe ~ N * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2), data = dat)
+summary(LM2.full.7)
+drop1(LM2.full.7)
+LM2.full.8 <- lm(ddt.phe ~ N * temp_mean_summer + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(temp_mean_summer^2), data = dat)
+summary(LM2.full.8)
+drop1(LM2.full.8)
+LM2.full.9 <- lm(ddt.phe ~ N * temp_mean_summer + Z_mean * fishing_status + temp_mean_winter * fishing_status + I(N^2), data = dat)
+summary(LM2.full.9)
+drop1(LM2.full.9)
+LM2.full.10 <- lm(ddt.phe ~ N * temp_mean_summer + Z_mean * fishing_status + temp_mean_winter * fishing_status, data = dat)
+summary(LM2.full.10)
+drop1(LM2.full.10)
+LM2.full.11 <- lm(ddt.phe ~ N + temp_mean_summer + Z_mean * fishing_status + temp_mean_winter * fishing_status, data = dat)
+summary(LM2.full.11)
+drop1(LM2.full.11)
+LM2.full.12 <- lm(ddt.phe ~ N + temp_mean_summer + Z_mean * fishing_status + temp_mean_winter, data = dat)
+summary(LM2.full.12)
+drop1(LM2.full.12)
+LM2.full.13 <- lm(ddt.phe ~ temp_mean_summer + Z_mean * fishing_status + temp_mean_winter, data = dat)
+summary(LM2.full.13)
+drop1(LM2.full.13)
+LM2.full.14 <- lm(ddt.phe ~ Z_mean * fishing_status + temp_mean_winter, data = dat)
+summary(LM2.full.14)
+drop1(LM2.full.14)
+
 #
 ###
 
@@ -464,13 +580,13 @@ anova(LM2.full.5,LM2.full.4)
 ###########################
 
 par(mfrow = c(2, 2))
-plot_effect("N", "Density", LM2.full.5, dat$ddt.phe)
+plot_effect("N", "Density", LM2.full.14, dat$ddt.phe, "Phenotypic change")
 lines(c(-10,10),c(0,0),lty=2)
-plot_effect("Z_mean", "Mean phenotype", LM2.full.5, dat$ddt.phe)
+plot_effect("Z_mean", "Mean phenotype", LM2.full.14, dat$ddt.phe, "Phenotypic change")
 lines(c(-10,10),c(0,0),lty=2)
-plot_effect("temp_mean_summer", "Summer temperature", LM2.full.5, dat$ddt.phe)
+plot_effect("temp_mean_summer", "Summer temperature", LM2.full.14, dat$ddt.phe, "Phenotypic change")
 lines(c(-10,10),c(0,0),lty=2)
-plot_effect("temp_mean_winter", "Winter temperature", LM2.full.5, dat$ddt.phe)
+plot_effect("temp_mean_winter", "Winter temperature", LM2.full.14, dat$ddt.phe, "Phenotypic change")
 lines(c(-10,10),c(0,0),lty=2)
 
 legend(

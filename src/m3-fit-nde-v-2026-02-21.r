@@ -844,6 +844,66 @@ par(mfrow=c(1,1))
 #
 ###
 
+###############################
+## VERIFY GROUPING STRUCTURE ##
+###############################
+
+plot(residuals)
+labels = MTS_o$idx
+color_vector = rainbow(length(unique(labels)))
+k = 1
+for (label in unique(labels)){
+  s = which(labels == label)
+  points(s, residuals[s], col=color_vector[k], pch=16)
+  k = k + 1
+}
+
+#
+###
+
+###############################
+## VERIFY GROUPING STRUCTURE ##
+###############################
+
+## Check grouping structure in residuals
+plot(residuals)
+labels = MTS_o$idx
+color_vector = rainbow(length(unique(labels)))
+k = 1
+for (label in unique(labels)){
+  s = which(labels == label)
+  points(s, residuals[s], col=color_vector[k], pch=16)
+  k = k + 1
+}
+plot(residuals, residuals)
+
+## Check correlations between groups
+num_plots = length(unique(labels))
+cormat = matrix(0, num_plots, num_plots)
+cortest = matrix(0, num_plots, num_plots)
+for (i in 1:num_plots)
+{
+  for (j in 1:num_plots)
+  {
+    si = which(labels == unique(labels)[i])
+    sj = which(labels == unique(labels)[j])
+    # plot(residuals[sj], residuals[si], col=color_vector[i])
+    cormat[i,j] <- cor(residuals[si],residuals[sj])
+    test <- cor.test(residuals[si],residuals[sj])
+    cortest[i,j] <- test$p.value
+  }
+}
+image(cormat)
+image(cortest<0.05)
+hist(cormat * (1-diag(1, num_plots, num_plots)))
+# 1 & 9 (>0)
+# 2 & 5 (>0)
+# 4 & 5 (<0)
+# 4 & 9 (>0)
+
+#
+###
+
 #######################
 ## VISUALISE HEATMAP ##
 #######################
@@ -1493,6 +1553,49 @@ par(mfrow=c(1,1))
 #
 ###
 
+###############################
+## VERIFY GROUPING STRUCTURE ##
+###############################
+
+## Check grouping structure in residuals
+plot(residuals)
+labels = MTS_o$idx
+color_vector = rainbow(length(unique(labels)))
+k = 1
+for (label in unique(labels)){
+  s = which(labels == label)
+  points(s, residuals[s], col=color_vector[k], pch=16)
+  k = k + 1
+}
+plot(residuals, residuals)
+
+## Check correlations between groups
+num_plots = length(unique(labels))
+cormat = matrix(0, num_plots, num_plots)
+cortest = matrix(0, num_plots, num_plots)
+for (i in 1:num_plots)
+{
+  for (j in 1:num_plots)
+  {
+    si = which(labels == unique(labels)[i])
+    sj = which(labels == unique(labels)[j])
+    # plot(residuals[sj], residuals[si], col=color_vector[i])
+    cormat[i,j] <- cor(residuals[si],residuals[sj])
+    test <- cor.test(residuals[si],residuals[sj])
+    cortest[i,j] <- test$p.value
+  }
+}
+image(cormat)
+image(cortest<0.05)
+hist(cormat * (1-diag(1, num_plots, num_plots)))
+# 1 & 9 (>0)
+# 2 & 5 (>0)
+# 4 & 5 (<0)
+# 4 & 9 (>0)
+
+#
+###
+
 #######################
 ## VISUALISE HEATMAP ##
 #######################
@@ -1887,8 +1990,8 @@ for(k in index){
   points(x1_points_x, x2_points_x, pch=X_[,5]+1, col=c('black','red')[X_[,5]+1])
   
   ## Contours
-  contour((predictions_N[[k]]), levels=0, add=T, col='royalblue', lwd=2)
-  contour((predictions_Z[[k]]), levels=0, add=T, col='red', lwd=2)  
+  contour((predictions_N[[k]]), levels=0, add=T, col='royalblue', lwd=3)
+  contour((predictions_Z[[k]]), levels=0, add=T, col='red', lwd=3)  
   
 }
 #
