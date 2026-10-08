@@ -272,9 +272,108 @@ colnames(dat)
 #
 ###
 
-####################
-## LINEAR MODEL 1 ##
-####################
+###################
+## LINEAR MODELS ##
+###################
+
+
+plot_effect <- function(var, label, model, response, ylab) {
+  
+  x <- dat[[var]]
+  
+  plot(
+    x[dat$fishing_status == 0],
+    response[dat$fishing_status == 0],
+    pch = 1, col = "black",
+    xlab = label, ylab = ylab,
+    xlim = range(x, na.rm = TRUE),
+    ylim = range(dat$ddt.pop, na.rm = TRUE),
+  )
+  
+  points(
+    x[dat$fishing_status == 1],
+    response[dat$fishing_status == 1],
+    pch = 2, col = "red"
+  )
+  
+  newdat <- data.frame(
+    N = mean(dat$N, na.rm = TRUE),
+    Z_mean = mean(dat$Z_mean, na.rm = TRUE),
+    temp_mean_summer = mean(dat$temp_mean_summer, na.rm = TRUE),
+    temp_mean_winter = mean(dat$temp_mean_winter, na.rm = TRUE),
+    fishing_status = rep(c(0, 1), each = 100)
+  )
+  
+  newdat[[var]] <- rep(
+    seq(min(x, na.rm = TRUE), max(x, na.rm = TRUE), length.out = 100),
+    2
+  )
+  
+  pred <- predict(model, newdata = newdat)
+  
+  lines(newdat[[var]][newdat$fishing_status == 0],
+        pred[newdat$fishing_status == 0],
+        col = "black", lwd = 2)
+  
+  lines(newdat[[var]][newdat$fishing_status == 1],
+        pred[newdat$fishing_status == 1],
+        col = "red", lwd = 2)
+}
+
+
+## Minimum model
+LM1.0 <- lm(ddt.pop ~ N + Z_mean + temp_mean_summer + temp_mean_winter + fishing_status, data = dat)
+summary(LM1.0)
+LM2.0 <- lm(ddt.phe ~ N + Z_mean + temp_mean_summer + temp_mean_winter + fishing_status, data = dat)
+summary(LM2.0)
+
+
+par(mfrow = c(2, 2))
+plot_effect("N", "Density", LM1.0, dat$ddt.pop, "Population growth")
+lines(c(-10,10),c(0,0),lty=2)
+plot_effect("Z_mean", "Mean phenotype", LM1.0, dat$ddt.pop, "Population growth")
+lines(c(-10,10),c(0,0),lty=2)
+plot_effect("temp_mean_summer", "Summer temperature", LM1.0, dat$ddt.pop, "Population growth")
+lines(c(-10,10),c(0,0),lty=2)
+plot_effect("temp_mean_winter", "Winter temperature", LM1.0, dat$ddt.pop, "Population growth")
+lines(c(-10,10),c(0,0),lty=2)
+#
+legend(
+  "top",
+  legend = c("Non-harvested", "Harvested"),
+  pch = c(1, 17),
+  col = c("black", "red"),
+  bty = "n"
+)
+#
+par(mfrow=c(1,1))
+
+par(mfrow = c(2, 2))
+plot_effect("N", "Density", LM2.0, dat$ddt.phe, "Phenotypic change")
+lines(c(-10,10),c(0,0),lty=2)
+plot_effect("Z_mean", "Mean phenotype", LM2.0, dat$ddt.phe, "Phenotypic change")
+lines(c(-10,10),c(0,0),lty=2)
+plot_effect("temp_mean_summer", "Summer temperature", LM2.0, dat$ddt.phe, "Phenotypic change")
+lines(c(-10,10),c(0,0),lty=2)
+plot_effect("temp_mean_winter", "Winter temperature", LM2.0, dat$ddt.phe, "Phenotypic change")
+lines(c(-10,10),c(0,0),lty=2)
+#
+legend(
+  "top",
+  legend = c("Non-harvested", "Harvested"),
+  pch = c(1, 17),
+  col = c("black", "red"),
+  bty = "n"
+)
+#
+par(mfrow=c(1,1))
+
+#
+###
+
+##############################
+## LINEAR MODEL 1 SELECTION ##
+##############################
 
 ## Backward step-wise model simplification
 LM1.0 <- lm(ddt.pop ~ N + Z_mean + temp_mean_summer * fishing_status + temp_mean_winter * fishing_status, data = dat)
@@ -397,49 +496,6 @@ anova(LM1.full.12,LM1.full.11)
 ## VISUALISE PREDICTIONS ##
 ###########################
 
-plot_effect <- function(var, label, model, response, ylab) {
-  
-  x <- dat[[var]]
-  
-  plot(
-    x[dat$fishing_status == 0],
-    response[dat$fishing_status == 0],
-    pch = 1, col = "black",
-    xlab = label, ylab = ylab,
-    xlim = range(x, na.rm = TRUE),
-    ylim = range(dat$ddt.pop, na.rm = TRUE),
-  )
-  
-  points(
-    x[dat$fishing_status == 1],
-    response[dat$fishing_status == 1],
-    pch = 2, col = "red"
-  )
-  
-  newdat <- data.frame(
-    N = mean(dat$N, na.rm = TRUE),
-    Z_mean = mean(dat$Z_mean, na.rm = TRUE),
-    temp_mean_summer = mean(dat$temp_mean_summer, na.rm = TRUE),
-    temp_mean_winter = mean(dat$temp_mean_winter, na.rm = TRUE),
-    fishing_status = rep(c(0, 1), each = 100)
-  )
-  
-  newdat[[var]] <- rep(
-    seq(min(x, na.rm = TRUE), max(x, na.rm = TRUE), length.out = 100),
-    2
-  )
-  
-  pred <- predict(model, newdata = newdat)
-  
-  lines(newdat[[var]][newdat$fishing_status == 0],
-        pred[newdat$fishing_status == 0],
-        col = "black", lwd = 2)
-  
-  lines(newdat[[var]][newdat$fishing_status == 1],
-        pred[newdat$fishing_status == 1],
-        col = "red", lwd = 2)
-}
-
 par(mfrow = c(2, 2))
 plot_effect("N", "Density", LM1.full.12, dat$ddt.pop, "Population growth")
 lines(c(-10,10),c(0,0),lty=2)
@@ -449,14 +505,16 @@ plot_effect("temp_mean_summer", "Summer temperature", LM1.full.12, dat$ddt.pop, 
 lines(c(-10,10),c(0,0),lty=2)
 plot_effect("temp_mean_winter", "Winter temperature", LM1.full.12, dat$ddt.pop, "Population growth")
 lines(c(-10,10),c(0,0),lty=2)
-
+#
 legend(
-  "topright",
+  "top",
   legend = c("Non-harvested", "Harvested"),
   pch = c(1, 17),
   col = c("black", "red"),
   bty = "n"
 )
+#
+par(mfrow=c(1,1))
 
 #
 ###
