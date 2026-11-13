@@ -327,6 +327,25 @@ summary(LM1.0)
 LM2.0 <- lm(ddt.phe ~ N + Z_mean + temp_mean_summer + temp_mean_winter + fishing_status, data = dat)
 summary(LM2.0)
 
+## Full models
+LM1.full.0 <- lm(ddt.pop ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_summer * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM1.full.0)
+LM2.full.0 <- lm(ddt.phe ~ N * temp_mean_winter + Z_mean * temp_mean_winter + N * temp_mean_summer + Z_mean * temp_mean_summer + N * fishing_status + Z_mean * fishing_status + temp_mean_summer * fishing_status + temp_mean_winter * fishing_status + I(N^2) + I(Z_mean^2) + I(temp_mean_summer^2) + I(temp_mean_winter^2), data = dat)
+summary(LM2.full.0)
+
+## Compute R-squared
+summary(LM1.0)$r.squared
+summary(LM1.0)$adj.r.squared
+summary(LM1.full.0)$r.squared
+summary(LM1.full.0)$adj.r.squared
+summary(LM2.0)$r.squared
+summary(LM2.0)$adj.r.squared
+summary(LM2.full.0)$r.squared
+summary(LM2.full.0)$adj.r.squared
+
+## Compare models
+anova(LM1.0, LM1.full.0)
+anova(LM2.0, LM2.full.0)
 
 par(mfrow = c(2, 2))
 plot_effect("N", "Density", LM1.0, dat$ddt.pop, "Population growth")
